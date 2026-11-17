@@ -1,9 +1,16 @@
 # 196dev components
 
-Small, dependency-free pieces built for the 196dev portfolio: generative
-backgrounds, text reveals and a few interface details. No build step, no
-framework, no npm install. Every component is **one ES module file**: copy it
-into your project, import it, pass options.
+A collection of niche web components: the kind you go looking for, can't
+find anywhere, and end up building yourself. Ink marbling on water, a black
+hole drawn in characters, liquid chrome, banknote guilloché, riso halftone…
+Each one started as something I wanted and couldn't find, so I built it and
+put it here for the next person searching for the same thing.
+
+The collection keeps growing: whenever I need something that doesn't exist
+yet, it lands here.
+
+No build step, no framework, no npm install. Every component is **one ES
+module file**: copy it into your project, import it, pass options.
 
 Open `index.html` (through any local server) for a live preview of every background.
 The `hero-ascii.js` black hole also hides words in the dark: the pointer is
