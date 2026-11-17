@@ -38,6 +38,10 @@ function rgb(c) {
 /* Varsayılan ayarlar: mount(canvas, { ... }) ile istediğini değiştir. */
 export const defaults = {
   pointer: true,     // tıklama ve tarak açık mı
+  /* clickMode: true iken imleci gezdirmek hiçbir şey yapmaz; basılı tutup
+     sürükleyince tarak çeker, sürüklemeden bırakınca damla düşer.
+     false (varsayılan): gezdirmek tarar, tıklamak damlatır */
+  clickMode: false,
   dim: false,        // true: ortadaki başlığın arkasını kıs
   water: "#050208",  // su (zemin) rengi
   /* mürekkepler: kağıt kremi, sıcak turuncular ve termal skaladan lacivert /
@@ -102,8 +106,17 @@ void main() {
       // damla: içindeysek renk bu; dışındaysak damla bizi dışarı itmişti, geri al
       vec2 d = p - a.xy;
       float d2 = dot(d, d);
-      float cov = 1.0 - smoothstep(a.z - uAA, a.z + uAA, sqrt(d2));
-      col += w * cov * b.rgb;
+      float dl = sqrt(d2);
+      // kenar tam daire değil: yüzey gerilimi düzensiz yayıyor
+      vec2 dir = d / max(dl, 1e-6);
+      float rr = a.z * (1.0 + 0.045 * (noise(dir * 2.3 + a.xy * 37.0) - 0.5));
+      float cov = 1.0 - smoothstep(rr - uAA, rr + uAA, dl);
+      // pigment taneleri: damlanın kendi koordinatında, mürekkeple birlikte akıyor
+      float grain = noise(d * 140.0 + a.xy * 53.0) * 0.6 + noise(d * 38.0 - a.xy * 21.0) * 0.4;
+      // kenarda pigment birikiyor (koyu ince çizgi), içi hafif açık
+      float rim = smoothstep(rr * 0.86, rr, dl);
+      vec3 ink = b.rgb * (0.9 + 0.2 * grain) * (1.0 - 0.22 * rim) * (1.0 + 0.05 * (1.0 - rim));
+      col += w * cov * ink;
       w *= 1.0 - cov;
       if (w < 0.01) break;
       p = a.xy + d * sqrt(max(0.0, 1.0 - a.z * a.z / max(d2, 1e-9)));
@@ -112,7 +125,10 @@ void main() {
       vec2 rel = p - a.xy;
       float across = abs(dot(rel, vec2(-b.y, b.x)));
       float along = dot(rel, b.xy);
-      p -= b.xy * a.z * exp(-across / b.z) * exp(-along * along / (b.w * b.w));
+      // sıvı yapışkan: çizgiden uzaklaştıkça etki yumuşak azalıyor (keskin
+      // üstel yerine yuvarlatılmış profil), uçlar da yumuşak
+      float prof = 1.0 / (1.0 + pow(across / b.z, 1.6));
+      p -= b.xy * a.z * prof * exp(-along * along / (b.w * b.w));
     }
   }
   col += w * WATER;
@@ -210,7 +226,8 @@ export function mount(canvas, options = {}) {
     dirty = true;
   }
 
-  const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+  /* yayılma: mürekkep önce hızlı açılıyor, sonra yapışkanlıkla yavaşlayıp duruyor */
+  const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 4);
 
   function render() {
     ops = ops.filter((o) => o.dying == null || clock - o.dying < FADE);   // çözülmesi bitenler gidiyor
@@ -255,23 +272,61 @@ export function mount(canvas, options = {}) {
     return [(e.clientX - rect.left - W / 2) / H, -(e.clientY - rect.top - H / 2) / H];
   };
   let anchor = null, lastStroke = 0;
-  if (opts.pointer) window.addEventListener("pointermove", (e) => {
-    const p = toP(e);
-    if (!p) { anchor = null; return; }
+  let down = null, moved = false;                // clickMode: basılı tutma durumu
+  const nextColor = () => {
+    const names = opts.clickColors.filter((c) => PAL[c]);
+    return names.length ? PAL[names[clickIdx++ % names.length]] : null;
+  };
+  const drop = (p) => {
+    const col = nextColor();
+    if (col) add({ type: 1, x: p[0], y: p[1], r: 0.075, col, born: clock, dur: 1.1 });
+  };
+  /* tarak: imleç hızına göre çekiş; kısa kıpırtılar iz bırakmıyor */
+  function comb(p) {
     if (!anchor) { anchor = p; return; }
     const dx = p[0] - anchor[0], dy = p[1] - anchor[1], d = Math.hypot(dx, dy);
-    if (d < 0.09 || clock - lastStroke < 0.09) return;       // kısa kıpırtılar iz bırakmıyor
-    add({ type: 2, x: p[0], y: p[1], dx: dx / d, dy: dy / d, z: Math.min(0.14, d * 0.9), lam: 0.045, len: 0.22, born: clock, dur: 0.5 });
+    if (d < 0.07 || clock - lastStroke < 0.07) return;
+    add({ type: 2, x: p[0], y: p[1], dx: dx / d, dy: dy / d, z: Math.min(0.14, d * 0.9), lam: 0.04, len: 0.22, born: clock, dur: 0.7 });
     anchor = p; lastStroke = clock;
-  }, { passive: true, signal: off.signal });
-  if (opts.pointer) window.addEventListener("pointerdown", (e) => {
-    if (e.target.closest && e.target.closest("a, button")) return;
-    const p = toP(e);
-    if (!p) return;
-    const names = opts.clickColors.filter((c) => PAL[c]);
-    if (!names.length) return;
-    add({ type: 1, x: p[0], y: p[1], r: 0.075, col: PAL[names[clickIdx++ % names.length]], born: clock, dur: 0.9 });
-  }, { signal: off.signal });
+  }
+  const ignore = (e) => e.target.closest && e.target.closest("a, button");
+  if (opts.pointer && !opts.clickMode) {
+    window.addEventListener("pointermove", (e) => {
+      const p = toP(e);
+      if (!p) { anchor = null; return; }
+      comb(p);
+    }, { passive: true, signal: off.signal });
+    window.addEventListener("pointerdown", (e) => {
+      if (ignore(e)) return;
+      const p = toP(e);
+      if (p) drop(p);
+    }, { signal: off.signal });
+  }
+  if (opts.pointer && opts.clickMode) {
+    canvas.style.touchAction = "none";           // dokunmatikte sürükleme sayfayı kaydırmasın
+    window.addEventListener("pointerdown", (e) => {
+      if (ignore(e)) return;
+      const p = toP(e);
+      if (!p) return;
+      e.preventDefault();                        // sürüklerken yazı seçilmesin
+      down = p; moved = false; anchor = p;
+    }, { signal: off.signal });
+    window.addEventListener("pointermove", (e) => {
+      if (!down) return;                         // basılı değil: hiçbir şey yapma
+      const p = toP(e);
+      if (!p) { anchor = null; return; }
+      if (Math.hypot(p[0] - down[0], p[1] - down[1]) > 0.02) moved = true;
+      comb(p);
+    }, { passive: true, signal: off.signal });
+    const up = (e) => {
+      if (!down) return;
+      const p = toP(e);
+      if (!moved && p) drop(p);                  // sürüklemeden bıraktı: damla
+      down = null; anchor = null;
+    };
+    window.addEventListener("pointerup", up, { signal: off.signal });
+    window.addEventListener("pointercancel", () => { down = null; anchor = null; }, { signal: off.signal });
+  }
 
   let visible = true, last = -1e9, prev = 0, raf = 0;
   function loop(ms) {

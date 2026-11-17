@@ -40,7 +40,7 @@ with a comment.
 | File | What it is | Main options |
 |---|---|---|
 | `hero-chrome.js` | Liquid chrome: a flowing metal surface reflecting an imaginary studio | `speed`, `ripple`, `dim`, `colors { ink, ember, gold, cream, steel }` |
-| `hero-ebru.js` | Ebru (paper marbling): click to drop ink, move the pointer to comb it | `water`, `palette`, `rings`, `clickColors`, `drip`, `dripSize`, `dim` |
+| `hero-ebru.js` | Ebru (paper marbling): click to drop ink, move the pointer to comb it | `water`, `palette`, `rings`, `clickColors`, `drip`, `dripSize`, `clickMode`, `dim` |
 | `hero-guilloche.js` | Guilloché: slowly counter-rotating banknote line rosettes | `speed`, `dim`, `colors { ink, cream, gold, ember, blue, pink }` |
 | `hero-halftone.js` | Halftone: two-colour riso-style dot print | `speed`, `dots`, `dim`, `colors { paper, inkA, inkB, overlap }` |
 | `hero-ascii.js` | ASCII black hole drawn entirely in characters | `ramp`, `color(b)`, `background`, `holeY`, `hidden`, `tokens` |
