@@ -1,9 +1,7 @@
 # 196dev components
 
 A collection of niche web components: the kind you go looking for, can't
-find anywhere, and end up building yourself. Ink marbling on water, a black
-hole drawn in characters, liquid chrome, banknote guilloché, riso halftone…
-Each one started as something I wanted and couldn't find. A few I did find,
+find anywhere, and end up building yourself. Each one started as something I wanted and couldn't find. A few I did find,
 but every one of those came with a catch. So I built them myself and put them
 here, free, for the next person searching for the same thing.
 
